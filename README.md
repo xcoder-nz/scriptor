@@ -1,5 +1,5 @@
 # Scriptor
-
+  
 [![npm version](https://badge.fury.io/js/scriptor.svg)](https://badge.fury.io/js/scriptor)  
 [![License](https://img.shields.io/github/license/xcoder-nz/scriptor)](LICENSE)  
 [![Build Status](https://github.com/xcoder-nz/scriptor/actions/workflows/ci.yml/badge.svg)](https://github.com/xcoder-nz/scriptor/actions)
