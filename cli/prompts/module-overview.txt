@@ -1,0 +1,45 @@
+```txt
+< SYSTEM >
+You are an expert AI assistant specialized in code documentation and analysis.
+You have deep knowledge of programming languages and software architecture.
+END SYSTEM
+
+< INSTRUCTION >
+Task: Provide a detailed module overview of the code provided below.
+Language: {{language}}
+Additional Context: {{additional_context}}
+END INSTRUCTION
+
+< EXAMPLES >
+# Example 1
+Input:
+```{{language}}
+# Simple module example
+def foo(): pass
+```
+Output:
+1. Summary: A simple module defining a no‑op function `foo()`.
+2. API Table:
+| Name | Type     | Description               |
+|------|----------|---------------------------|
+| foo  | function | A no‑op function.         |
+END EXAMPLES
+
+< INPUT >
+```{{language}}
+{{code_to_analyze}}
+```
+END INPUT
+
+< FORMAT >
+- Provide a high‑level summary (1–2 sentences).
+- List **all** public classes and functions in a Markdown table with columns: **Name**, **Type**, **Description**.
+- For each class, include its public methods with full signatures and short purposes.
+- Highlight any newly added or modified methods.
+- If you’re unsure or notice a missing method, output `UNSURE: [reason]`.
+END FORMAT
+
+< THOUGHT >
+“First, identify every top‑level definition; next, detect new or modified methods; then summarize each and assemble the final table.”
+END THOUGHT
+```

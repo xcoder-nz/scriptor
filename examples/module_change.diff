@@ -1,0 +1,38 @@
+diff --git a/analytics.py b/analytics.py
+index 1234567..89abcde 100644
+--- a/analytics.py
++++ b/analytics.py
+@@ -1,6 +1,10 @@
+ # analytics.py
+ 
+-"""
+-Module for analytics operations.
+-"""
++"""
++A small analytics module demonstrating multiple functions and classes.
++Updated: added median calculation and improved report formatting.
++"""
+ 
+ class DataPoint:
+@@ -15,6 +19,16 @@ class Analyzer:
+     def max(self) -> DataPoint:
+         """Find the data point with the maximum value."""
+         return max(self.data, key=lambda dp: dp.value)
++
++    def median(self) -> float:
++        """Compute the median of the data values."""
++        sorted_vals = sorted(dp.value for dp in self.data)
++        n = len(sorted_vals)
++        mid = n // 2
++        if n % 2 == 0:
++            return (sorted_vals[mid - 1] + sorted_vals[mid]) / 2
++        return sorted_vals[mid]
++
+     def report(self) -> None:
+-        """Prints a summary report to stdout."""
+-        print(f"Data points: {len(self.data)}")
+-        print(f"Mean value: {self.mean()}")
+-        print(f"Max value: {self.max().value} at {self.max().timestamp}")
++        """Prints a summary report to stdout with median."""
++        print(f"Data points: {len(self.data)}")
++        print(f"Mean: {self.mean()}, Median: {self.median()}")
