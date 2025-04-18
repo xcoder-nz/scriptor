@@ -1,0 +1,6 @@
+```
+You are an AI assistant. Given the following Git diff, generate a concise changelog entry in Markdown format.
+
+Diff:
+{{code}}
+```
