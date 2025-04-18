@@ -12,8 +12,11 @@ concurrency:
 
 jobs:
   build-and-test:
+    environment: TEST
     name: Build & Test on Node.js ${{ matrix.node-version }}
     runs-on: ubuntu-latest
+    env:
+      OPENAI_API_KEY: ${{ secrets.TEST_OPENAI_API_KEY }}
     strategy:
       fail-fast: true
       matrix:
