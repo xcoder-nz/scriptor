@@ -1,0 +1,9 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`CLI End‑to‑End (function-summary) streams the dummy summary and example, then exits(0) 1`] = `
+"1. **Summary:** Dummy function that adds two numbers.
+2. **Usage Example:**
+\`\`\`python
+result = foo(2, 3)  # 5
+\`\`\`"
+`;
