@@ -7,6 +7,7 @@ module.exports = {
   collectCoverageFrom: [
     'cli/**/*.ts',
     'src/**/*.ts',
+    'cli/prompts/PromptManager.ts',
     '!cli/prompts/**/*.ts',
     '!**/*.d.ts'
   ],
