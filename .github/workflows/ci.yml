@@ -1,3 +1,4 @@
+# .github/workflows/ci.yml
 name: Continuous Integration
 
 on:
@@ -6,15 +7,14 @@ on:
   pull_request:
     branches: [main]
   schedule:
-    # Weekly CodeQL scan at 03:00 UTC every Sunday
-    - cron: '0 3 * * SUN'
+    - cron: '0 3 * * SUN'  # weekly CodeQL
 
 concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  # 1. Dependency review on every PR
+  # 1. Dependency review on PRs
   dependency-review:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
@@ -25,7 +25,7 @@ jobs:
         with:
           fail-on-severity: moderate
 
-  # 2. Audit installed packages
+  # 2. NPM audit
   npm-audit:
     needs: dependency-review
     runs-on: ubuntu-latest
@@ -56,7 +56,7 @@ jobs:
         with:
           node-version: ${{ matrix.node-version }}
 
-      - name: Cache npm modules
+      - name: Cache npm
         uses: actions/cache@v3
         with:
           path: ~/.npm
@@ -64,7 +64,7 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-node-${{ matrix.node-version }}-
 
-      - name: Cache TypeScript build info
+      - name: Cache TS build info
         uses: actions/cache@v3
         with:
           path: ./.tsbuildinfo
@@ -86,26 +86,31 @@ jobs:
         run: npm run test:int:cov
 
       - name: Merge NYC coverage outputs
-        run: |
-          npx nyc merge .nyc_output coverage/coverage.json
+        run: npx nyc merge .nyc_output coverage/coverage.json
 
       - name: Generate combined coverage report
-        run: |
-          npx nyc report --reporter=lcov --reporter=text
+        run: npx nyc report --reporter=lcov --reporter=text
 
-      - name: Upload coverage report
+      # Only upload once on Ubuntu + Node 20 to avoid 409 conflicts :contentReference[oaicite:2]{index=2}
+      - name: Upload coverage artifact
+        if: matrix.os == 'ubuntu-latest' && matrix.node-version == '20.x'
         uses: actions/upload-artifact@v4
         with:
           name: coverage-report
           path: coverage/
+          overwrite: true        # delete & recreate to avoid conflicts :contentReference[oaicite:3]{index=3}
 
       - name: Publish to Codecov
-        uses: codecov/codecov-action@v3
+        if: matrix.os == 'ubuntu-latest' && matrix.node-version == '20.x'
+        uses: codecov/codecov-action@v5
         with:
-          files: ./coverage/coverage.json
           token: ${{ secrets.CODECOV_TOKEN }}
+          files: coverage/coverage.json
+          flags: ${{ matrix.os }}-${{ matrix.node-version }}
+          fail_ci_if_error: true
+          verbose: true
 
-  # 4. CodeQL scanning (on push and on schedule)
+  # 4. CodeQL scanning
   code-scanning:
     runs-on: ubuntu-latest
     permissions:
