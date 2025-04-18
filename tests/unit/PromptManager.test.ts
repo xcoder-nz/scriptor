@@ -2,78 +2,97 @@ import fs from 'fs';
 import path from 'path';
 import { PromptManager } from '../../cli/prompts/PromptManager';
 
+// Utility to escape RegExp metacharacters in a string
+function escapeRegExp(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
 describe('PromptManager', () => {
   const testDir = path.join(__dirname, 'test_templates');
 
   beforeEach(() => {
+    // Recreate test directory
+    if (fs.existsSync(testDir)) fs.rmSync(testDir, { recursive: true });
     fs.mkdirSync(testDir);
+
+    // Base templates
     fs.writeFileSync(path.join(testDir, 'template1.txt'), 'This is template 1.');
-    fs.writeFileSync(path.join(testDir, 'template2.txt'), 'This is template 2 with {{variable}}.');
+    fs.writeFileSync(
+      path.join(testDir, 'template2.txt'),
+      'This is template 2 with {{variable}} and reuse {{variable}}.'
+    );
   });
 
   afterEach(() => {
     fs.rmSync(testDir, { recursive: true });
   });
 
-  it('should load templates from the specified directory', () => {
-    const manager = new PromptManager(testDir, false);
-    expect(manager.list()).toEqual(['template1', 'template2']);
+  it('loads templates from the specified directory', () => {
+    const mgr = new PromptManager(testDir, false);
+    const list = mgr.list().sort();
+    expect(list).toEqual(['template1', 'template2']);
   });
 
-  it('should retrieve a raw template', () => {
-    const manager = new PromptManager(testDir, false);
-    expect(manager.raw('template1')).toBe('This is template 1.');
+  it('retrieves raw template content', () => {
+    const mgr = new PromptManager(testDir, false);
+    expect(mgr.raw('template1')).toBe('This is template 1.');
   });
 
-  it('should throw an error if a template is not found', () => {
-    const manager = new PromptManager(testDir, false);
-    expect(() => manager.raw('nonexistent')).toThrow('Prompt \'nonexistent\' not found');
+  it('throws an informative error if a template is not found', () => {
+    const mgr = new PromptManager(testDir, false);
+    expect(() => mgr.raw('nope')).toThrow(
+      new RegExp(`Prompt 'nope' not found in ${escapeRegExp(testDir)}`)
+    );
   });
 
-  it('should render a template with variables', () => {
-    const manager = new PromptManager(testDir, false);
-    const rendered = manager.render('template2', { variable: 'value' });
-    expect(rendered).toBe('This is template 2 with value.');
+  it('renders a template by replacing all occurrences of a variable', () => {
+    const mgr = new PromptManager(testDir, false);
+    const out = mgr.render('template2', { variable: 'VALUE' });
+    expect(out).toBe('This is template 2 with VALUE and reuse VALUE.');
   });
 
-  it('should list all available templates', () => {
-    const manager = new PromptManager(testDir, false);
-    expect(manager.list()).toEqual(['template1', 'template2']);
+  it('leaves unknown placeholders intact', () => {
+    const tpl = 'Hello {{name}}, welcome to {{site}}!';
+    fs.writeFileSync(path.join(testDir, 'tpl.txt'), tpl);
+    const mgr = new PromptManager(testDir, false);
+    const rendered = mgr.render('tpl', { name: 'Alice' });
+    expect(rendered).toBe('Hello Alice, welcome to {{site}}!');
   });
 
-  it('should extract variable names from a template', () => {
-    const manager = new PromptManager(testDir, false);
-    expect(manager.variables('template2')).toEqual(['variable']);
+  it('renders multiple occurrences of the same variable', () => {
+    const tpl = '{{x}} + {{x}} = {{sum}}';
+    fs.writeFileSync(path.join(testDir, 'math.txt'), tpl);
+    const mgr = new PromptManager(testDir, false);
+    const result = mgr.render('math', { x: '2', sum: '4' });
+    expect(result).toBe('2 + 2 = 4');
   });
 
-  it('should watch for changes in the template directory', async () => {
-    const manager = new PromptManager(testDir);
-    const newTemplatePath = path.join(testDir, 'template3.txt');
+  it('extracts variable names from a template', () => {
+    const mgr = new PromptManager(testDir, false);
+    expect(mgr.variables('template2')).toEqual(['variable']);
+  });
 
-    // Initial templates should be template1 and template2, template3 should NOT exist
-    expect(manager.list()).toEqual(expect.arrayContaining(['template1', 'template2']));
-    expect(manager.list()).not.toContain('template3');
-
-    await new Promise<void>((resolve) => {
-      // Introduce a delay before writing the new file to ensure the watcher is set up
+  it('watches for new template files when watching is enabled', async () => {
+    const mgr = new PromptManager(testDir, true);
+    expect(mgr.list()).toEqual(expect.arrayContaining(['template1', 'template2']));
+    // Add a new template after a short delay
+    await new Promise<void>(resolve => {
       setTimeout(() => {
-        fs.writeFileSync(newTemplatePath, 'This is template 3.');
-
-        // Wait for the watcher to pick up the change
+        fs.writeFileSync(path.join(testDir, 'template3.txt'), 'Third template.');
         setTimeout(() => {
-          expect(manager.list()).toEqual(expect.arrayContaining(['template1', 'template2', 'template3']));
+          expect(mgr.list()).toEqual(
+            expect.arrayContaining(['template1', 'template2', 'template3'])
+          );
           resolve();
-        }, 500); // Adjust timeout as needed for file system events
-      }, 100); // Short delay before writing the file
+        }, 300);
+      }, 100);
     });
-    manager.close(); // Clean up the watcher
+    mgr.close();
   });
 
-  it('should close the file system watcher', () => {
-    const manager = new PromptManager(testDir);
-    manager.close();
-    // While we can't directly verify the watcher is closed, this test ensures the close method doesn't throw errors.
-    expect(true).toBe(true)
+  it('close() does not throw when watcher is inactive or already closed', () => {
+    const mgr = new PromptManager(testDir, true);
+    mgr.close();  // first close
+    expect(() => mgr.close()).not.toThrow();  // closing again is safe
   });
-  
 });
