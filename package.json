@@ -3,7 +3,11 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-    "test": "jest --config ./jest.config.js"
+    "test": "jest --config ./jest.config.js",
+    "test:unit": "jest --config ./jest.config.js --testPathPattern=tests/unit",
+    "test:int": "jest --config ./jest.config.js --testPathPattern=tests/integration",
+    "test:file": "jest --config ./jest.config.js --",
+    "test:grep": "jest --config ./jest.config.js -t"
   },
   "keywords": [],
   "author": "Carlos Pinto xcoder-nz",
@@ -22,6 +26,7 @@
     "yargs": "^17.7.2"
   },
   "dependencies": {
+    "nock": "^14.0.3",
     "openai": "^4.95.0"
   }
 }
