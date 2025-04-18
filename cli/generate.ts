@@ -11,7 +11,11 @@ import { PromptManager } from './prompts/PromptManager';
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY! });
 const prompts = new PromptManager(path.join(__dirname, 'prompts'), false);
 
-function guessLanguage(file: string): string {
+/**
+ * @internal
+ * Guesses programming language from file extension.
+ */
+export function guessLanguage(file: string): string {
   const ext = path.extname(file).toLowerCase();
   if (!ext) return 'text';
   const langMap: Record<string, string> = {
@@ -32,15 +36,22 @@ function guessLanguage(file: string): string {
   return langMap[ext] || ext.replace('.', '');
 }
 
-/** Extract < SYSTEM >...</END SYSTEM> as system, remainder as user */
-function splitSystemUser(template: string): { system: string, user: string } {
+/**
+ * @internal
+ * Extract < SYSTEM >...</END SYSTEM> as system, remainder as user
+ */
+export function splitSystemUser(template: string): { system: string, user: string } {
   const sysMatch = template.match(/< SYSTEM >\s*([\s\S]*?)\s*END SYSTEM/);
   const system = sysMatch ? sysMatch[1].trim() : 'You are a helpful assistant.';
   const user = template.replace(/< SYSTEM >[\s\S]*?END SYSTEM/, '').trim();
   return { system, user };
 }
 
-async function runAgent(
+/**
+ * @internal
+ * Run the agent using OpenAI+PromptManager.
+ */
+export async function runAgent(
   promptName: string,
   filePath: string,
   code: string,
@@ -73,7 +84,7 @@ async function runAgent(
 
   // 5. OpenAI API call
   const response = await openai.chat.completions.create({
-    model: 'gpt-4.1',
+    model: 'gpt-4.1-mini',
     stream: true,
     messages: [
       { role: 'system', content: system },
@@ -140,7 +151,7 @@ yargs(hideBin(process.argv))
       try {
         const result = await runAgent(prompt as string, filePath, code, cliVars);
 
-        // >>>>>>>>>>>> OUTPUT TO MARKDOWN FILE IF --out
+        // OUTPUT TO MARKDOWN FILE IF --out
         if (out) {
           const docsDir = path.join(process.cwd(), 'docs');
           if (!fs.existsSync(docsDir)) {
@@ -152,13 +163,12 @@ yargs(hideBin(process.argv))
           fs.writeFileSync(outPath, result, 'utf8');
           console.log(`\nSaved output to: ${outPath}\n`);
         }
-        // <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
 
-        prompts.close();
+        prompts.close?.();
         process.exit(0);
       } catch (err: any) {
         console.error('Agent error:', err.message);
-        prompts.close();
+        prompts.close?.();
         process.exit(1);
       }
     }
