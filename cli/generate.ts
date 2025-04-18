@@ -166,8 +166,10 @@ yargs(hideBin(process.argv))
 
         prompts.close?.();
         process.exit(0);
-      } catch (err: any) {
-        console.error('Agent error:', err.message);
+      } catch (err: unknown) {
+        // Safely extract an error message
+        const message = err instanceof Error ? err.message : String(err);
+        console.error('Agent error:', message);
         prompts.close?.();
         process.exit(1);
       }

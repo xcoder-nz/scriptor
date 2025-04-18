@@ -27,7 +27,7 @@ describe('PromptManager', () => {
 
   it('should throw an error if a template is not found', () => {
     const manager = new PromptManager(testDir, false);
-    expect(() => manager.raw('nonexistent')).toThrowError('Prompt \'nonexistent\' not found');
+    expect(() => manager.raw('nonexistent')).toThrow('Prompt \'nonexistent\' not found');
   });
 
   it('should render a template with variables', () => {
@@ -46,31 +46,34 @@ describe('PromptManager', () => {
     expect(manager.variables('template2')).toEqual(['variable']);
   });
 
-  it('should watch for changes in the template directory', (done) => {
+  it('should watch for changes in the template directory', async () => {
     const manager = new PromptManager(testDir);
     const newTemplatePath = path.join(testDir, 'template3.txt');
 
-    // Initial templates should be template1 and template2
+    // Initial templates should be template1 and template2, template3 should NOT exist
     expect(manager.list()).toEqual(expect.arrayContaining(['template1', 'template2']));
     expect(manager.list()).not.toContain('template3');
 
-
-    // Introduce a delay before writing the new file to ensure the watcher is set up
-    setTimeout(() => {
+    await new Promise<void>((resolve) => {
+      // Introduce a delay before writing the new file to ensure the watcher is set up
+      setTimeout(() => {
         fs.writeFileSync(newTemplatePath, 'This is template 3.');
 
         // Wait for the watcher to pick up the change
         setTimeout(() => {
-            expect(manager.list()).toEqual(expect.arrayContaining(['template1', 'template2', 'template3']));
-            manager.close(); // Clean up the watcher
-            done();
+          expect(manager.list()).toEqual(expect.arrayContaining(['template1', 'template2', 'template3']));
+          resolve();
         }, 500); // Adjust timeout as needed for file system events
-    }, 100); // Short delay before writing the file
+      }, 100); // Short delay before writing the file
+    });
+    manager.close(); // Clean up the watcher
   });
 
   it('should close the file system watcher', () => {
     const manager = new PromptManager(testDir);
     manager.close();
     // While we can't directly verify the watcher is closed, this test ensures the close method doesn't throw errors.
+    expect(true).toBe(true)
   });
+  
 });

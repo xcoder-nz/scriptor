@@ -1,56 +1,59 @@
-// tests/unit/generate.test.ts
+import fs, { existsSync, mkdirSync, writeFileSync } from 'fs';
+import { PromptManager } from '../../cli/prompts/PromptManager';
 
-import fs from 'fs';
+type MockAPIPromise<T> = AsyncGenerator<T, void, unknown>;
+type MockPromptManager = Partial<PromptManager>;
+type MockOpenAIInstance = Partial<{
+  chat: Partial<{
+    completions: Partial<{
+      create: jest.Mock;
+    }>;
+  }>;
+}>;
+
+// 1) Mock fs module
 jest.mock('fs');
-import path from 'path';
 
-let mockPrompts: any;
-let mockOpenAIInstance: any;
-let registeredHandler: ((args: any) => Promise<any>) | null = null;
-
-// 1) Mock PromptManager so its constructor returns `mockPrompts`
+// 2) Mock PromptManager so its constructor returns our mockPrompts
+let mockPrompts: MockPromptManager;
 jest.mock('../../cli/prompts/PromptManager', () => ({
   __esModule: true,
   PromptManager: jest.fn(() => mockPrompts),
 }));
 
-// 2) Mock OpenAI so `new OpenAI()` returns our `mockOpenAIInstance`
+// 3) Mock OpenAI so `new OpenAI()` returns our mock instance
+let mockOpenAIInstance: MockOpenAIInstance;
 jest.mock('openai', () => ({
   __esModule: true,
   default: jest.fn(() => mockOpenAIInstance),
 }));
 
-// 3) Mock yargs to capture the CLI handler into `registeredHandler`
+// 4) Capture CLI handler
+let registeredHandler: ((args: Record<string, unknown>) => Promise<unknown>) | null = null;
 jest.mock('yargs', () => {
-  const yargsMock = {
-    command: jest.fn(
-      (_cmd: string, _desc: string, _builder: any, handler: (args: any) => Promise<any>) => {
-        registeredHandler = handler;
-        return yargsMock;
-      }
-    ),
+  const y = {
+    command: jest.fn((cmd: string, desc: string, builder: unknown, handler: typeof registeredHandler) => {
+      registeredHandler = handler;
+      return y;
+    }),
     demandCommand: jest.fn().mockReturnThis(),
     help: jest.fn().mockReturnThis(),
-    parse: jest.fn(), // no-op; we'll invoke registeredHandler manually
+    parse: jest.fn(),
   };
   return {
     __esModule: true,
-    default: jest.fn(() => yargsMock),
+    default: jest.fn(() => y),
     hideBin: jest.fn((argv: string[]) => argv.slice(2)),
   };
 });
 
-//
-// --- Tests for pure functions
-//
-
 describe('guessLanguage()', () => {
   let guessLanguage: (file: string) => string;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     jest.resetModules();
-    const { guessLanguage: gl } = require('../../cli/generate');
-    guessLanguage = gl;
+    const mod = await import('../../cli/generate');
+    guessLanguage = mod.guessLanguage;
   });
 
   it('maps extensions correctly', () => {
@@ -71,14 +74,14 @@ describe('guessLanguage()', () => {
 describe('splitSystemUser()', () => {
   let splitSystemUser: (tpl: string) => { system: string; user: string };
 
-  beforeEach(() => {
+  beforeEach(async () => {
     jest.resetModules();
-    const { splitSystemUser: ssu } = require('../../cli/generate');
-    splitSystemUser = ssu;
+    const mod = await import('../../cli/generate');
+    splitSystemUser = mod.splitSystemUser;
   });
 
   it('splits SYSTEM and USER portions', () => {
-    const tpl = `< SYSTEM >Hello END SYSTEM World`;
+    const tpl = '< SYSTEM >Hello END SYSTEM World';
     const { system, user } = splitSystemUser(tpl);
     expect(system).toBe('Hello');
     expect(user).toBe('World');
@@ -99,29 +102,27 @@ describe('runAgent()', () => {
     cliVars: Record<string, string>
   ) => Promise<string>;
 
-  beforeEach(() => {
+  beforeEach(async () => {
     jest.resetModules();
 
     mockPrompts = {
       variables: jest.fn().mockReturnValue(['code', 'language', 'additional_context']),
-      render:    jest.fn().mockReturnValue('< SYSTEM >SYS END SYSTEM USR'),
-      close:     jest.fn(),
+      render: jest.fn().mockReturnValue('< SYSTEM >SYS END SYSTEM USR'),
+      close: jest.fn(),
     };
     mockOpenAIInstance = {
       chat: {
         completions: {
-          create: jest.fn().mockResolvedValue(
-            (async function* () {
-              yield { choices: [{ delta: { content: 'Hello ' } }] };
-              yield { choices: [{ delta: { content: 'World!' } }] };
-            })()
-          ),
-        },
-      },
+          create: jest.fn().mockResolvedValue((async function* () {
+            yield { choices: [{ delta: { content: 'Hello ' } }] };
+            yield { choices: [{ delta: { content: 'World!' } }] };
+          })() as MockAPIPromise<{ choices: [{ delta: { content: string } }] }>)
+        }
+      }
     };
 
-    const { runAgent: ra } = require('../../cli/generate');
-    runAgent = ra;
+    const mod = await import('../../cli/generate');
+    runAgent = mod.runAgent;
   });
 
   it('streams tokens and returns full result', async () => {
@@ -136,90 +137,63 @@ describe('runAgent()', () => {
     expect(mockPrompts.render).toHaveBeenCalledWith('myprompt', {
       code: 'print("hi")',
       language: 'python',
-      additional_context: '',
+      additional_context: ''
     });
     expect(result).toBe('Hello World!');
   });
 });
 
-//
-// --- CLI integration tests
-//
-
 describe('CLI integration (generate command)', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     jest.resetModules();
 
-    // Stub fs methods
     (fs.readFileSync as jest.Mock).mockReturnValue('some code');
-    (fs.existsSync as jest.Mock).mockReturnValue(false);
-    (fs.mkdirSync   as jest.Mock).mockImplementation(() => {});
-    (fs.writeFileSync as jest.Mock).mockImplementation(() => {});
+    (existsSync as jest.Mock).mockReturnValue(false);
+    (mkdirSync as jest.Mock).mockImplementation(() => {});
+    (writeFileSync as jest.Mock).mockImplementation(() => {});
 
     mockPrompts = {
       variables: jest.fn().mockReturnValue(['code', 'language', 'additional_context']),
-      render:    jest.fn().mockReturnValue('< SYSTEM >SYS END SYSTEM USR'),
-      close:     jest.fn(),
+      render: jest.fn().mockReturnValue('< SYSTEM >SYS END SYSTEM USR'),
+      close: jest.fn(),
     };
     mockOpenAIInstance = {
       chat: {
         completions: {
-          create: jest.fn().mockResolvedValue(
-            (async function* () {
-              yield { choices: [{ delta: { content: 'RESULT' } }] };
-            })()
-          ),
-        },
-      },
+          create: jest.fn().mockResolvedValue((async function* () {
+            yield { choices: [{ delta: { content: 'RESULT' } }] };
+          })() as MockAPIPromise<{ choices: [{ delta: { content: string } }] }>)
+        }
+      }
     };
 
-    // Load CLI so yargs.command registers our handler
-    require('../../cli/generate');
+    await import('../../cli/generate');
   });
 
   it('--out is set → logs "Saved output to:" then exits(1)', async () => {
-    const exitSpy = jest
-      .spyOn(process, 'exit')
-      .mockImplementation((code?: number) => { throw new Error(`EXIT:${code}`); });
+    const exitSpy = jest.spyOn(process, 'exit').mockImplementation((code?: number) => { throw new Error(`EXIT:${code}`); });
     const logSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
 
+    expect(registeredHandler).toBeDefined();
     await expect(
-      registeredHandler!({
-        prompt: 'myprompt',
-        file: 'foo.py',
-        additional_context: '',
-        language: '',
-        out: true,
-      })
+      registeredHandler!({ prompt: 'myprompt', file: 'foo.py', additional_context: '', language: '', out: true })
     ).rejects.toThrow('EXIT:1');
 
-    expect(logSpy).toHaveBeenCalledWith(
-      expect.stringContaining('Saved output to:')
-    );
+    expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('Saved output to:'));
 
     logSpy.mockRestore();
     exitSpy.mockRestore();
   });
 
   it('--out not set → does not log saved‑output, still exits(1)', async () => {
-    const exitSpy = jest
-      .spyOn(process, 'exit')
-      .mockImplementation((code?: number) => { throw new Error(`EXIT:${code}`); });
+    const exitSpy = jest.spyOn(process, 'exit').mockImplementation((code?: number) => { throw new Error(`EXIT:${code}`); });
     const logSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
 
     await expect(
-      registeredHandler!({
-        prompt: 'myprompt',
-        file: 'foo.py',
-        additional_context: '',
-        language: '',
-        out: false,
-      })
+      registeredHandler!({ prompt: 'myprompt', file: 'foo.py', additional_context: '', language: '', out: false })
     ).rejects.toThrow('EXIT:1');
 
-    expect(logSpy).not.toHaveBeenCalledWith(
-      expect.stringContaining('Saved output to:')
-    );
+    expect(logSpy).not.toHaveBeenCalledWith(expect.stringContaining('Saved output to:'));
 
     logSpy.mockRestore();
     exitSpy.mockRestore();
