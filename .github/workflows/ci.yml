@@ -3,9 +3,9 @@ name: Continuous Integration
 
 on:
   push:
-    branches: [main]
+    branches: [ main ]
   pull_request:
-    branches: [main]
+    branches: [ main ]
   schedule:
     - cron: '0 3 * * SUN'  # weekly CodeQL
 
@@ -35,18 +35,17 @@ jobs:
       - name: Audit for vulnerabilities
         run: npm audit --audit-level=moderate
 
-  # 3. Build, lint, typecheck, tests, coverage
+  # 3. Build, lint, typecheck, tests & coverage
   build-and-test:
-    needs: [dependency-review, npm-audit]
+    needs: [ dependency-review, npm-audit ]
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: true
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
-        node-version: [18.x, 20.x]
+        os: [ ubuntu-latest, windows-latest, macos-latest ]
+        node-version: [ 18.x, 20.x ]
     env:
       OPENAI_API_KEY: ${{ secrets.TEST_OPENAI_API_KEY }}
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
@@ -109,37 +108,7 @@ jobs:
           fail_ci_if_error: true
           verbose: true
 
-  # 4. Fully‑automated release via semantic‑release
-  release:
-    name: 🚀 Release
-    needs: build-and-test
-    runs-on: ubuntu-latest
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 18.x
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Run Semantic Release
-        uses: cycjimmy/semantic-release-action@v4
-        with:
-          extra_plugins: |
-            @semantic-release/npm
-            @semantic-release/github
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          NPM_TOKEN:    ${{ secrets.NPM_TOKEN }}         
-
-  # 5. CodeQL scanning
+  # 4. CodeQL scanning (push & schedule)
   code-scanning:
     runs-on: ubuntu-latest
     permissions:
