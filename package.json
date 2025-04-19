@@ -23,7 +23,7 @@
   },
   "main": "index.js",
   "bin": {
-    "scriptor‑ai": "dist/index.js"
+    "scriptor-ai": "dist/index.js"
   },
   "scripts": {
     "test": "jest --config ./jest.config.js",
