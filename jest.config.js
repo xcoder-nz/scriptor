@@ -11,6 +11,8 @@ module.exports = {
     '!cli/prompts/**/*.ts',
     '!**/*.d.ts'
   ],
+  coveragePathIgnorePatterns: ['/dist/'],
+  testPathIgnorePatterns: ['/dist/'],
   coverageThreshold: {
     global: {
       branches: 80,

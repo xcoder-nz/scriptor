@@ -20,7 +20,8 @@ module.exports = [
       'eslint.config.cjs',
       'jest.config.js',
       'examples/**',
-      'tests/integration/setupNock.js'
+      'tests/integration/setupNock.js',
+      'dist/**'
     ]
   },
 
