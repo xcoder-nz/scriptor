@@ -91,14 +91,13 @@ jobs:
       - name: Generate combined coverage report
         run: npx nyc report --reporter=lcov --reporter=text
 
-      # Only upload once on Ubuntu + Node 20 to avoid 409 conflicts :contentReference[oaicite:2]{index=2}
       - name: Upload coverage artifact
         if: matrix.os == 'ubuntu-latest' && matrix.node-version == '20.x'
         uses: actions/upload-artifact@v4
         with:
           name: coverage-report
           path: coverage/
-          overwrite: true        # delete & recreate to avoid conflicts :contentReference[oaicite:3]{index=3}
+          overwrite: true
 
       - name: Publish to Codecov
         if: matrix.os == 'ubuntu-latest' && matrix.node-version == '20.x'
@@ -110,7 +109,37 @@ jobs:
           fail_ci_if_error: true
           verbose: true
 
-  # 4. CodeQL scanning
+  # 4. Fully‑automated release via semantic‑release
+  release:
+    name: 🚀 Release
+    needs: build-and-test
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18.x
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run Semantic Release
+        uses: cycjimmy/semantic-release-action@v4
+        with:
+          extra_plugins: |
+            @semantic-release/npm
+            @semantic-release/github
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NPM_TOKEN:    ${{ secrets.NPM_TOKEN }}         
+
+  # 5. CodeQL scanning
   code-scanning:
     runs-on: ubuntu-latest
     permissions:
