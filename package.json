@@ -11,7 +11,8 @@
       "cli/prompts/**/*.ts"
     ],
     "exclude": [
-      "tests/"
+      "tests/",
+      "dist/"
     ],
     "reporter": [
       "lcov",
