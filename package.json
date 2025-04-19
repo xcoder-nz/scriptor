@@ -1,5 +1,5 @@
 {
-  "name": "scriptor",
+  "name": "scriptor-ai",
   "version": "1.0.0",
   "nyc": {
     "all": true,
@@ -34,10 +34,21 @@
     "typecheck": "tsc --noEmit",
     "check": "npm run lint && npm run typecheck && npm run test"
   },
-  "keywords": [],
+  "keywords": [
+    "AI",
+    "OpenAI",
+    "LLM",
+    "code‑documentation",
+    "CLI",
+    "GitHub‑Action",
+    "developer‑tools",
+    "prompt‑engineering",
+    "typescript",
+    "automation"
+  ],
   "author": "Carlos Pinto xcoder-nz",
   "license": "MIT",
-  "description": "",
+  "description": "AI‑powered CLI and GitHub Action for generating code documentation and examples using OpenAI LLMs.",
   "devDependencies": {
     "@eslint/js": "^9.24.0",
     "@types/jest": "^29.5.14",
